@@ -1,0 +1,5 @@
+{
+  "api": "1.0.0",
+  "name": "fetch-image",
+  "main": "plugin.ts"
+}
