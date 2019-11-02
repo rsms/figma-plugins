@@ -12,6 +12,7 @@ const graphviz = window["graphviz"] as {
 }
 
 
+const isMac = navigator.platform.indexOf("Mac") != -1
 const genButton = document.querySelector('button.gen')! as HTMLButtonElement
 const genCloseButton = document.querySelector('button.gen-and-close')! as HTMLButtonElement
 const playgroundButton = document.querySelector('button.playground')! as HTMLButtonElement
@@ -219,6 +220,7 @@ function main() {
 
   // toolbar buttons
   genButton.onclick = () => { genGraph(/* closeWhenDone */ false) }
+  genButton.title = isMac ? "⌘↩" : "Ctrl+Return"
   genCloseButton.onclick = () => { genGraph(/* closeWhenDone */ true) }
   playgroundButton.onclick = () => {
     window.open("https://rsms.me/graphviz/?source=" + encodeURIComponent(editor.text))
