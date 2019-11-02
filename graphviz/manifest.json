@@ -1,0 +1,7 @@
+{
+  "api": "1.0.0",
+  "name": "Graphviz",
+  "id": "770827538515501401",
+  "main": "src/plugin.ts",
+  "ui": "src/ui.ts"
+}
