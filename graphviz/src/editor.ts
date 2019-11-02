@@ -78,9 +78,9 @@ export class Editor {
       return this.decreaseTextSize(), true
     }
 
-    if (DEBUG && (ev.metaKey || ev.ctrlKey || ev.altKey)) {
-      dlog("Editor onKeyEvent: [unhandled] key:", key, ev)
-    }
+    // if (DEBUG && (ev.metaKey || ev.ctrlKey || ev.altKey)) {
+    //   dlog("Editor onKeyEvent: [unhandled] key:", key, ev)
+    // }
 
     return false
   }

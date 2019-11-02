@@ -150,7 +150,7 @@ function sendmsg<T extends Msg>(msg :T) {
 function main() {
   figma.showUI(__html__, {
     width: 440,
-    height: 700,
+    height: 600,
     position: "last",
   })
 

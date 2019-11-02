@@ -14,8 +14,9 @@ const graphviz = window["graphviz"] as {
 
 const isMac = navigator.platform.indexOf("Mac") != -1
 const genButton = document.querySelector('button.gen')! as HTMLButtonElement
-const genCloseButton = document.querySelector('button.gen-and-close')! as HTMLButtonElement
+// const genCloseButton = document.querySelector('button.gen-and-close')! as HTMLButtonElement
 const playgroundButton = document.querySelector('button.playground')! as HTMLButtonElement
+const demoButton = document.querySelector('button.demo')! as HTMLButtonElement
 
 
 let editor = new Editor(document.getElementById('dotcode')! as HTMLTextAreaElement)
@@ -63,19 +64,6 @@ async function makeViz(dotSource :string) :Promise<string> {
     }
   }
 
-  // Did graphviz write an error to the header?
-  if (svg.startsWith("Error:")) {
-    let i = svg.indexOf("<?xml")
-    let error = ""
-    if (i != -1) {
-      error = svg.substr(0, i).trim()
-      svg = svg.substr(i)
-    } else {
-      [error, svg] = svg.split("\n", 2)
-    }
-    alert(error)
-  }
-
   // clean up svg
   // <?xml version="1.0" encoding="UTF-8" standalone="no"?>
   // <!DOCTYPE svg PUBLIC ...>
@@ -101,7 +89,42 @@ async function makeViz(dotSource :string) :Promise<string> {
   // replace fontname
   svg = svg.replace(/"Arial,Inter"/g, '"Inter"')
 
-  //dlog(dotSource + "\n\n-> svg ->\n\n" + JSON.stringify(svg))
+  // scale?
+  let scale = [1,1]
+  let m = dotSource.match(/(?:^|\n)\s*scale\s*=\s*([\d"',]+);?/im)
+  if (m) {
+    scale = m[1].replace(/[^\d\.]/g, " ").trim().split(" ").map(parseFloat)
+    if (scale.length == 1) {
+      scale[1] = scale[0]
+    }
+    // class="graph" transform="scale(1 1) rotate(0) translate(72 374)"
+    let i = svg.indexOf('class="graph" transform="')
+    if (i != -1) {
+      i += 'class="graph" transform="'.length
+      svg = svg.substr(0, i) + `scale(${scale[0]} ${scale[1]}) ` + svg.substr(i)
+    }
+  }
+
+  // update size if scale != 1
+  if (scale[0] != 1 || scale[1] != 1) {
+    // extract width & height
+    // <svg width="572pt" height="446pt"  viewBox="0.00 0.00 572.00 446.00"
+    let width = 0, height = 0
+    svg = svg.replace(
+      /<svg\s+width="([\d\.]+)[^"]*"\s+height="([\d\.]+)[^"]*"\s+viewBox="([\d\.]+) ([\d\.]+) ([\d\.]+) ([\d\.]+)"/mi,
+      (substr :string, ...m :string[]) => {
+        let f = m.slice(0, 6).map(parseFloat)
+        if (f.some(isNaN)) {
+          return substr
+        }
+        width = Math.ceil(f[0] * scale[0])
+        height = Math.ceil(f[1] * scale[1])
+        return `<svg width="${width}" height="${height}" viewBox="${f[2]} ${f[3]} ${width} ${height}"`
+      }
+    )
+  }
+
+  // dlog(dotSource + "\n\n-> svg ->\n\n" + JSON.stringify(svg))
 
   return svg
 }
@@ -140,11 +163,11 @@ function onUpdateUI(msg :UpdateUIMsg) {
   if (msg.nodeId) {
     // selection is an existing graph
     genButton.innerText = "Update"
-    genCloseButton.innerText = "Update & Close"
+    // genCloseButton.innerText = "Update & Close"
     editor.text = msg.sourceCode
   } else {
     genButton.innerText = "Create"
-    genCloseButton.innerText = "Create & Close"
+    // genCloseButton.innerText = "Create & Close"
     editor.text = loadUntitledSourceCode()
   }
   // for now, avoid focusing as it steals inputs from interacting with Figma canvas
@@ -221,9 +244,12 @@ function main() {
   // toolbar buttons
   genButton.onclick = () => { genGraph(/* closeWhenDone */ false) }
   genButton.title = isMac ? "⌘↩" : "Ctrl+Return"
-  genCloseButton.onclick = () => { genGraph(/* closeWhenDone */ true) }
+  // genCloseButton.onclick = () => { genGraph(/* closeWhenDone */ true) }
   playgroundButton.onclick = () => {
     window.open("https://rsms.me/graphviz/?source=" + encodeURIComponent(editor.text))
+  }
+  demoButton.onclick = () => {
+    window.open("https://www.figma.com/file/j0LbONPTHzDEhJWZBNNP3D/Graphviz-examples/duplicate")
   }
 
   // event handlers

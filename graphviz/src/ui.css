@@ -28,7 +28,7 @@ a, a:active, a:visited { color: inherit; }
 /* end of reset */
 
 :root {
-  --blue: #0088ff;
+  --blue: #0085ff;
   --fontSize: 12px;
   --editorFontSize: var(--fontSize);
   --fontFamily: Inter;
@@ -85,6 +85,7 @@ textarea {
     line-height: var(--toolbarHeight);
     font-weight: 500;
     font-size: inherit;
+    white-space: nowrap;
 
     &:active {
       background: rgba(0,0,0,0.07);
