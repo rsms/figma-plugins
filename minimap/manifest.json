@@ -1,0 +1,7 @@
+{
+  "api": "1.0.0",
+  "id": "772952119002135124",
+  "name": "Minimap",
+  "main": "src/plugin.ts",
+  "ui": "src/ui.ts"
+}

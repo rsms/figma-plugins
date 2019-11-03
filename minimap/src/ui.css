@@ -1,0 +1,139 @@
+@import url("https://rsms.me/inter/inter.css");
+
+/* reset */
+* { font-family: inherit; line-height: inherit; font-synthesis: none; }
+a, abbr, acronym, address, applet, article, aside, audio, b, big, blockquote,
+body, canvas, caption, center, cite, code, dd, del, details, dfn, div, dl, dt,
+em, embed, fieldset, figcaption, figure, footer, form, grid, h1, h2, h3, h4, h5,
+h6, header, hgroup, hr, html, i, iframe, img, ins, kbd, label, legend, li, main,
+mark, menu, nav, noscript, object, ol, output, p, pre, q, s, samp, section,
+small, span, strike, strong, sub, summary, sup, table, tbody, td, tfoot, th,
+thead, time, tr, tt, u, ul, var, video {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  vertical-align: baseline;
+}
+blockquote, q { quotes: none; }
+blockquote:before, blockquote:after, q:before, q:after {
+  content: "";
+  content: none;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+a, a:active, a:visited { color: inherit; }
+/* end of reset */
+
+:root {
+  --fontFamily: "Inter";
+  --figmaBlue: #18A0FB;
+  --viewportColorR: 255;
+  --viewportColorG: 40;
+  --viewportColorB: 0;
+}
+
+@supports (font-variation-settings: normal) {
+  :root { --fontFamily: "Inter var";  }
+}
+
+body {
+  background: transparent;
+  color: #222;
+  font: 11px/16px var(--fontFamily), system-ui, -system-ui, sans-serif;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+
+#info {
+  position: fixed;
+  left:0; right:0; bottom:0;
+  padding: 8px;
+  pointer-events: none;
+  color: rgba(var(--viewportColorR), var(--viewportColorG), var(--viewportColorB), 0.5);
+  display: flex;
+
+  & .zoom {
+    flex: 1 0 auto;
+    text-align: right;
+  }
+}
+
+
+#map {
+  position: fixed;
+  /*background: #eee;*/
+
+  /* initially absolutely positioned */
+  &.init {
+    position:absolute;
+    top:0; right:0; bottom:0; left:0;
+  }
+
+  & .viewport {
+    position: absolute;
+    left:0; top:0;
+    box-sizing: border-box;
+    border: 1.5px solid rgba(var(--viewportColorR), var(--viewportColorG), var(--viewportColorB), 0.5);
+    transform: translate(0,0);
+    z-index:2;
+    border-radius:1px;
+    pointer-events: none;
+    /*transition: 60ms transform ease-out;*/
+  }
+
+  & .rects {
+    position:absolute;
+    top:0; right:0; bottom:0; left:0;
+
+    & .node {
+      position: absolute;
+      left:0; top:0;
+      box-sizing: border-box;
+      border: 1px solid rgba(0,0,0,0.2);
+      transform-origin: 0 0;
+      transform: translate(0,0);
+      user-select:none; -webkit-user-select:none;
+      /* Note: We allow pointer events to that elementFromPoint works */
+
+      &.selected {
+        border-color: var(--figmaBlue);
+        /*border: none;*/
+        /*background: var(--figmaBlue);*/
+      }
+      &.selected.direct {
+        background: var(--figmaBlue);
+        z-index:2;
+      }
+
+      & .label {
+        font-size: 9px;
+        line-height: 11px;
+        padding-left: 2px;
+        letter-spacing: 0.02em;
+        color: rgba(0,0,0,0.3);
+        font-weight: 440;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        user-select:none; -webkit-user-select:none;
+        pointer-events:none;
+      }
+      &.selected .label {
+        color: var(--figmaBlue);
+      }
+      &.selected.direct .label {
+        color: white;
+        font-weight:500;
+        letter-spacing: 0.015em;  /* counter-act line lenght from font weight change */
+      }
+    }
+  }
+
+}
