@@ -82,7 +82,8 @@ const map = new class {
   isMoving   = false      // true after viewport has been moved beyond move-vs-click threshold
 
   // etc
-  pxRatio    :int = 1 // copy of window.devicePixelRatio
+  pxRatio :int = 1 // copy of window.devicePixelRatio
+  timeLastSetFigmaViewport :int = 0  // last time map was updated _by_ UI
 
   constructor() {
     this.el = document.getElementById("map") as HTMLDivElement
@@ -162,8 +163,6 @@ const map = new class {
     )
     return p
   }
-
-  timeLastSetFigmaViewport :int = 0
 
   onPointerDown = (ev :PointerEvent) => {
     // dlog("onPointerDown", ev)
@@ -277,8 +276,15 @@ const map = new class {
     m.viewport.y = y
   }
 
-  updateViewport(vp :Viewport) {
+  updateViewport(vp :Viewport, timestamp :number) {
     const m = this
+
+    if (m.isMoving || timestamp - m.timeLastSetFigmaViewport < 100) {
+      // skip updating the viewport if the user is either
+      // - moving the viewport in the minimap, or
+      // - just recently moved it manually in the minimap.
+      return
+    }
 
     let z = vp.zoom
     let ww = (window.outerWidth - chromeWidth) / z
@@ -329,11 +335,11 @@ const map = new class {
   }
 
 
-  update(msg :MapUpdateMsg) {
+  update(msg :MapUpdateMsg, timestamp :number) {
     const m = this
 
     m.updateCanvasBounds(msg.canvas)
-    m.updateViewport(msg.viewport)
+    m.updateViewport(msg.viewport, timestamp)
     m.nodes = msg.nodes
 
     // let intervals :[number,NodeInfo[]][] = []
@@ -487,17 +493,17 @@ function main() {
     })
   }
 
-  window.onmessage = ev => {
+  window.onmessage = (ev :MessageEvent) => {
     let msg = ev.data.pluginMessage as Msg
     assert(typeof msg.type == "string")
     switch (msg.type as string) {
 
     case "map/update":
-      map.update(msg as MapUpdateMsg)
+      map.update(msg as MapUpdateMsg, ev.timeStamp)
       break
 
     case "update-viewport":
-      map.updateViewport((msg as UpdateViewportMsg).viewport)
+      map.updateViewport((msg as UpdateViewportMsg).viewport, ev.timeStamp)
       break
 
     default:
