@@ -80,6 +80,7 @@ const map = new class {
   pdownTime  :number = 0  // timestamp of last pointerdown event
   pdownPos   = ZeroPoint  // position of last pointerdown event
   isMoving   = false      // true after viewport has been moved beyond move-vs-click threshold
+  wasMoving  = false      // sticky value of last `isMoving`
 
   // etc
   pxRatio :int = 1 // copy of window.devicePixelRatio
@@ -170,11 +171,10 @@ const map = new class {
     ev.preventDefault()
     ev.stopPropagation()
 
-    let wasMoving = m.isMoving
-    m.isMoving = false
+    assert(m.isMoving == false)
 
     // is double-click?
-    if (!wasMoving && ev.timeStamp - m.pdownTime <= doubleClickTimeThreshold) {
+    if (!m.wasMoving && ev.timeStamp - m.pdownTime <= doubleClickTimeThreshold) {
       // treat as double-click
       m.onDoubleClick(ev)
       return
@@ -218,7 +218,9 @@ const map = new class {
       document.body.onmousemove = null
       document.body.onmouseup = null
     }
-    if (m.isMoving) {
+    m.wasMoving = m.isMoving
+    m.isMoving = false
+    if (m.wasMoving) {
       let p = m.moveViewportFromPointerEvent(ev)
       m.setFigmaViewport(p, ev.timeStamp)
     }
@@ -279,7 +281,9 @@ const map = new class {
   updateViewport(vp :Viewport, timestamp :number) {
     const m = this
 
-    if (m.isMoving || timestamp - m.timeLastSetFigmaViewport < 100) {
+    if (m.isMoving ||
+        (m.timeLastSetFigmaViewport > 0 && timestamp - m.timeLastSetFigmaViewport < 100)
+    ) {
       // skip updating the viewport if the user is either
       // - moving the viewport in the minimap, or
       // - just recently moved it manually in the minimap.
