@@ -101,3 +101,49 @@ textarea {
     }
   }
 }
+
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#spinner {
+  position: fixed;
+  left:0; top:0; right:0; bottom:48px;
+  z-index: 9;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 100ms ease-in-out;
+  & > div {
+    position:relative;
+    width:24px;
+    height:24px;
+    & svg {
+      position:absolute;
+      left:0; top:0;
+      &.shadow {
+        /* note: we can't use transform here */
+        margin-top: 5px;
+        filter: blur(1.5px);
+      }
+      &.shadow path {
+        stroke: rgba(0, 0, 100, 0.1);
+      }
+    }
+  }
+}
+#spinner.active {
+  opacity: 1;
+  transition-delay: 400ms;
+  transition-duration: 200ms;
+
+  & svg {
+    animation-name: spin;
+    animation-duration: 800ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+  }
+}

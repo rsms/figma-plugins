@@ -1,4 +1,4 @@
-import { Msg, UpdateUIMsg, UpdateGraphMsg, ErrorMsg } from "./structs"
+import { Msg, UpdateUIMsg, UpdateGraphMsg, ResponseMsg, ErrorMsg } from "./structs"
 
 
 // TODO:
@@ -106,9 +106,28 @@ function updateSelectedGraphFrame() {
 }
 
 
+function findSvgGraphTitle(svg :string) :string {
+  const titleChunk = "<title>"
+  let titleStart = svg.indexOf(titleChunk)
+  if (titleStart != -1) {
+    titleStart += titleChunk.length
+    let titleEnd = svg.indexOf("</", titleStart)
+    if (titleEnd != -1) {
+      let title = svg.substring(titleStart, titleEnd)
+      if (title != "%0") {
+        return title
+      }
+    }
+  }
+  return ""
+}
+
+
 function createNewGraph(msg :UpdateGraphMsg) {
   let n = importGraphSvg(msg.svgCode)
-  n.name = "Graph"
+
+  // get name from SVG graph title (i.e. from "graph Name {...")
+  n.name = findSvgGraphTitle(msg.svgCode) || "Graph"
 
   let vp = figma.viewport.center
   n.x = vp.x
@@ -125,14 +144,24 @@ function createNewGraph(msg :UpdateGraphMsg) {
 
 
 function onUpdateGraph(msg :UpdateGraphMsg) {
-  if (!msg.forceInsertNew && selGraphFrame) {
-    selGraphFrame.update(msg)
-  } else {
-    createNewGraph(msg)
+  let error :undefined|string
+  try {
+    let timeStarted = Date.now()
+    if (!msg.forceInsertNew && selGraphFrame) {
+      selGraphFrame.update(msg)
+    } else {
+      createNewGraph(msg)
+    }
+    print(`graphviz integration finished in ${(Date.now()-timeStarted).toFixed(0)}ms`)
+  } catch (err) {
+    console.error("[graphviz plugin] " + (err.stack||err))
+    error = ""+err
   }
-  if (msg.closeWhenDone) {
-    figma.closePlugin()
-  }
+  sendmsg<ResponseMsg>({
+    type: "response",
+    reqId: msg.reqId,
+    error,
+  })
 }
 
 

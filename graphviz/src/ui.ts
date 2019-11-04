@@ -1,4 +1,4 @@
-import { Msg, ClosePluginMsg, UpdateUIMsg, UpdateGraphMsg, ErrorMsg } from "./structs"
+import { Msg, ClosePluginMsg, UpdateUIMsg, UpdateGraphMsg, ResponseMsg, ErrorMsg } from "./structs"
 import { Editor } from "./editor"
 import { addKeyEventHandler } from "./util"
 
@@ -12,22 +12,34 @@ const graphviz = window["graphviz"] as {
 }
 
 
-const isMac = navigator.platform.indexOf("Mac") != -1
-const genButton = document.querySelector('button.gen')! as HTMLButtonElement
-// const genCloseButton = document.querySelector('button.gen-and-close')! as HTMLButtonElement
+const isMac            = navigator.platform.indexOf("Mac") != -1
+const genButton        = document.querySelector('button.gen')! as HTMLButtonElement
 const playgroundButton = document.querySelector('button.playground')! as HTMLButtonElement
-const demoButton = document.querySelector('button.demo')! as HTMLButtonElement
+const demoButton       = document.querySelector('button.demo')! as HTMLButtonElement
+const spinner          = document.querySelector('#spinner')! as HTMLDivElement
+const editor           = new Editor(document.getElementById('dotcode')! as HTMLTextAreaElement)
+
+// memory-only, since we can't use localStorage in plugins
+let untitledSourceCode = editor.defaultText
+
+// genButton labels
+const genButtonLabelCreate = genButton.innerText
+const genButtonLabelUpdate = "Update"
+const genButtonLabelBusy = "Working"
+let genButtonLabel = genButtonLabelCreate
 
 
-let editor = new Editor(document.getElementById('dotcode')! as HTMLTextAreaElement)
+const graphDefaults = (
+  '  graph [fontname="Arial,Inter" bgcolor=transparent];\n' +
+  '  node  [fontname="Arial,Inter"];\n' +
+  '  edge  [fontname="Arial,Inter"];\n'
+)
 
 
 function wrapInGraphDirective(s :string) :string {
   return (
     'digraph G {\n' +
-    '  graph [fontname="Arial,Inter" bgcolor=transparent];\n' +
-    '  node  [fontname="Arial,Inter"];\n' +
-    '  edge  [fontname="Arial,Inter"];\n' +
+    graphDefaults +
     s +
     '\n}\n'
   )
@@ -36,13 +48,19 @@ function wrapInGraphDirective(s :string) :string {
 
 async function makeViz(dotSource :string) :Promise<string> {
   let svg = ""
+  let originalDotSource = dotSource
 
   let addedGraphDirective = false
-  if (!dotSource.match(/\b(?:di)?graph(?:\s+[^\{]+|)*[\r\n\s]*\{/m)) {
-    // definitely no graph type directive
+  let m = dotSource.match(/\b(?:di)?graph(?:\s+[^\{]+|)[\r\n\s]*\{/)
+  if (m) {
+    // found graph directive -- add defaults
+    let i = (m.index||0) + m[0].length
+    dotSource = dotSource.substr(0, i) + "\n" + graphDefaults + dotSource.substr(i)
+  } else {
+    // no graph directive -- wrap & add defaults
     dotSource = wrapInGraphDirective(dotSource)
     addedGraphDirective = true
-  } // else: probably digraph, but not sure.
+  }
 
   while (1) {
     try {
@@ -53,8 +71,9 @@ async function makeViz(dotSource :string) :Promise<string> {
       if (err.message && (err.message+"").toLowerCase().indexOf("syntax error") != -1) {
         if (!addedGraphDirective) {
           // try and see if adding graph directive fixes it
-          dotSource = wrapInGraphDirective(dotSource)
+          dotSource = wrapInGraphDirective(originalDotSource)
           addedGraphDirective = true
+          dlog("makeViz retry with wrapped graph directive. New dotSource:\n" + dotSource)
         } else {
           throw new Error("malformed dot code")
         }
@@ -72,7 +91,7 @@ async function makeViz(dotSource :string) :Promise<string> {
   // xmlns:xlink="http://www.w3.org/1999/xlink"
   // <polygon fill="white" stroke="white" ...>   (useless rectangle)
   svg = svg.replace(
-    /<\?xml[^>]+\?>|<\!DOCTYPE[^>]+>|<\!--.*-->|<title>[^<]*<\/title>|xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink\"/gm,
+    /<\?xml[^>]+\?>|<\!DOCTYPE[^>]+>|<\!--.*-->|xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink\"/gm,
     ""
   )
 
@@ -91,7 +110,7 @@ async function makeViz(dotSource :string) :Promise<string> {
 
   // scale?
   let scale = [1,1]
-  let m = dotSource.match(/(?:^|\n)\s*scale\s*=\s*([\d"',]+);?/im)
+  m = dotSource.match(/(?:^|\n)\s*scale\s*=\s*([\d"',]+);?/im)
   if (m) {
     scale = m[1].replace(/[^\d\.]/g, " ").trim().split(" ").map(parseFloat)
     if (scale.length == 1) {
@@ -124,6 +143,7 @@ async function makeViz(dotSource :string) :Promise<string> {
     )
   }
 
+  // await new Promise<void>(r => setTimeout(r, 1000))
   // dlog(dotSource + "\n\n-> svg ->\n\n" + JSON.stringify(svg))
 
   return svg
@@ -131,30 +151,94 @@ async function makeViz(dotSource :string) :Promise<string> {
 
 
 let isGeneratingGraph = false
+let generateAgainImmediately = false
+let nextReqId = 0
 
-async function genGraph(closeWhenDone :bool) {
+
+async function genGraph() {
   if (isGeneratingGraph) {
+    generateAgainImmediately = true
     return
   }
+  print(`graphviz start`)
+
   isGeneratingGraph = true
+  let reqId = nextReqId++
+
+  // Add active class to spinner, which is set to appear after a 400ms delay,
+  // meaning that if we finish within that delay, the user never sees the spinner.
+  spinner.classList.add("active")
+
   try {
+    let timeStarted = Date.now()
     let sourceCode = editor.text
     let svgCode = await makeViz(sourceCode)
     sendmsg<UpdateGraphMsg>({
       type: 'update-graph',
+      reqId,
       svgCode,
       sourceCode,
-      closeWhenDone,
       forceInsertNew: false,
     })
+    print(`graphviz layout completed in ${(Date.now()-timeStarted).toFixed(0)}ms`)
+    await awaitResponse(reqId)
+    print(`graphviz finished in ${(Date.now()-timeStarted).toFixed(0)}ms`)
   } catch (err) {
     sendmsg<ErrorMsg>({
       type: "error",
       error: err.message,
     })
-  } finally {
-    isGeneratingGraph = false
   }
+
+  spinner.classList.remove("active")
+  isGeneratingGraph = false
+
+  // was a request made to genGraph while we were working?
+  // if so, schedule a call to genGraph ASAP.
+  if (generateAgainImmediately) {
+    generateAgainImmediately = false
+    setTimeout(genGraph, 1)
+  }
+}
+
+
+interface PromiseResolver {
+  resolve :()=>void
+  reject  :(e:any)=>void
+}
+let waitingForResponses = new Map<number,PromiseResolver>()
+
+
+function awaitResponse(reqId :number) {
+  if (waitingForResponses.has(reqId)) {
+    throw new Error(`duplicate reqId ${reqId}`)
+  }
+  return new Promise<void>((resolve, reject) => {
+    waitingForResponses.set(reqId, {resolve, reject})
+  })
+}
+
+
+function resolveResponse(msg :ResponseMsg) {
+  let pr = waitingForResponses.get(msg.reqId)
+  if (!pr) {
+    console.warn(`resolveResponse did not find entry for reqId ${msg.reqId}`)
+    return
+  }
+  waitingForResponses.delete(msg.reqId)
+  if (msg.error) {
+    pr.reject(new Error(msg.error))
+  } else {
+    pr.resolve()
+  }
+}
+
+
+function updateGenButton(label? :string) {
+  if (label) {
+    genButtonLabel = label
+  }
+  genButton.innerText = genButton.disabled ? genButtonLabelBusy : genButtonLabel
 }
 
 
@@ -162,21 +246,16 @@ function onUpdateUI(msg :UpdateUIMsg) {
   // called by the plugin when the selection changes
   if (msg.nodeId) {
     // selection is an existing graph
-    genButton.innerText = "Update"
-    // genCloseButton.innerText = "Update & Close"
+    updateGenButton(genButtonLabelUpdate)
     editor.text = msg.sourceCode
   } else {
-    genButton.innerText = "Create"
-    // genCloseButton.innerText = "Create & Close"
+    updateGenButton(genButtonLabelCreate)
     editor.text = loadUntitledSourceCode()
   }
   // for now, avoid focusing as it steals inputs from interacting with Figma canvas
   // editor.focus()
 }
 
-
-// memory-only, since we can't use localStorage in plugins
-let untitledSourceCode = editor.defaultText
 
 function loadUntitledSourceCode() :string {
   return untitledSourceCode
@@ -218,7 +297,7 @@ function setupEventHandlers() {
   addKeyEventHandler(window, (ev :KeyboardEvent, key :string) => {
     if ((ev.metaKey || ev.ctrlKey) && key == "Enter") {
       // meta-return: generate graph
-      genGraph(/*closeWhenDone*/ false)
+      genGraph()
       return true
     } else if (key == "Escape") {
       // ESC-ESC: close plugin
@@ -242,15 +321,22 @@ function setupEventHandlers() {
 function main() {
 
   // toolbar buttons
-  genButton.onclick = () => { genGraph(/* closeWhenDone */ false) }
+  genButton.onclick = () => { genGraph() }
   genButton.title = isMac ? "⌘↩" : "Ctrl+Return"
-  // genCloseButton.onclick = () => { genGraph(/* closeWhenDone */ true) }
   playgroundButton.onclick = () => {
     window.open("https://rsms.me/graphviz/?source=" + encodeURIComponent(editor.text))
   }
   demoButton.onclick = () => {
     window.open("https://www.figma.com/file/j0LbONPTHzDEhJWZBNNP3D/Graphviz-examples/duplicate")
   }
+
+  // [debug] Test the spinner UI
+  // setTimeout(() => {
+  //   spinner.classList.add("active")
+  //   setTimeout(() => {
+  //     spinner.classList.remove("active")
+  //   },10000)
+  // }, 100)
 
   // event handlers
   setupEventHandlers()
@@ -266,18 +352,9 @@ function main() {
         onUpdateUI(msg as UpdateUIMsg)
         break
 
-      // case "eval-response":
-      // case "print":
-      //   messageHandler(msg)
-      //   break
-
-      // case "ui-confirm":
-      //   rpc_confirm(msg as UIConfirmRequestMsg)
-      //   break
-
-      // case "fetch-request":
-      //   rpc_fetch(msg as FetchRequestMsg)
-      //   break
+      case "response":
+        resolveResponse(msg as ResponseMsg)
+        break
 
       default:
         print(`ui received unexpected message`, msg)

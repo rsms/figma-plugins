@@ -4,10 +4,16 @@ export interface Msg {
 
 export interface UpdateGraphMsg extends Msg {
   type           :"update-graph"
+  reqId          :number
   svgCode        :string
   sourceCode     :string
-  closeWhenDone  :bool  // close plugin after finishing adding graph
   forceInsertNew :bool  // don't attempt to replace exisiting graph
+}
+
+export interface ResponseMsg extends Msg {
+  type   :"response"
+  reqId  :number
+  error? :string
 }
 
 export interface ErrorMsg extends Msg {
