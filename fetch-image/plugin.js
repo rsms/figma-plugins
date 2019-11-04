@@ -45,7 +45,7 @@ function addImageToCanvas(data) {
 // Implementing multiplexing is pretty easy for this case:
 //
 // 1. When you being a fetch call, generate a unique identifier. For instance,
-//    a numbervariable that you keep incrementing.
+//    a number variable that you keep incrementing.
 //
 // 2. Associate this ID with the promise or callback for the fetch call.
 //
