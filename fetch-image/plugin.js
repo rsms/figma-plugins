@@ -1,10 +1,12 @@
 // URL to fetch
-let url = "https://scripter.rsms.me/icon.png"
+let url = "https://scripter.rsms.me/icon.pngz"
 
 // Run fetch in the UI process, sending the result to the plugin when done
 figma.showUI(`<script>
-  fetch(${JSON.stringify(url)}).then(r => r.arrayBuffer())
-  .then(a => parent.postMessage({ pluginMessage: { data: new Uint8Array(a) }}, '*'))
+  fetch(${JSON.stringify(url)}).then(r => {
+    if ((r.status+"")[0] != "2") throw Error(\`HTTP \${r.status} \${r.statusText}\`)
+    return r.arrayBuffer()
+  }).then(a => parent.postMessage({ pluginMessage: { data: new Uint8Array(a) }}, '*'))
   .catch(err => parent.postMessage({ pluginMessage: { error: ""+err }}, '*'))
 </script>`, {
   visible:false, // don't actually show a UI window
@@ -12,7 +14,7 @@ figma.showUI(`<script>
 
 // listen for messages from the UI process
 figma.ui.onmessage = msg => {
-  if (msg.data) {
+  if (msg.data && msg.data.length > 0) {
     addImageToCanvas(msg.data)
   }
   figma.closePlugin(msg.error || "")
