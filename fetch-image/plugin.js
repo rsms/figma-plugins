@@ -49,7 +49,7 @@ function addImageToCanvas(data) {
 //
 // 2. Associate this ID with the promise or callback for the fetch call.
 //
-// 3. Add this ID to your postMessage data.
+// 3. Include this ID with your postMessage call to the UI process.
 //
 // 4. In your UI process where you execute fetch(), include that same ID with the
 //    response message that the UI sends back to the plugin with postMessage.
