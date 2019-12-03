@@ -13,7 +13,7 @@ import { Msg, UpdateUIMsg, UpdateGraphMsg, ErrorMsg } from "./structs"
 //         when there's no graph selected: textarea.value = get localStorage.
 //
 
-function importGraphSvg(svg :string) :FrameNode {
+function importGraphSvg(svg: string): FrameNode {
   let n = figma.createNodeFromSvg(svg)
   // TODO: ungroup the single group child of n
   // // expect a single child: a group ("graph1")
@@ -26,15 +26,15 @@ function importGraphSvg(svg :string) :FrameNode {
 
 
 class GraphFrame {
-  n          :FrameNode
-  sourceCode :string
+  n: FrameNode
+  sourceCode: string
 
-  constructor(n :FrameNode, sourceCode :string) {
-    this.n          = n
+  constructor(n: FrameNode, sourceCode: string) {
+    this.n = n
     this.sourceCode = sourceCode
   }
 
-  update(msg :UpdateGraphMsg) {
+  update(msg: UpdateGraphMsg) {
     // For now, replace all.
     //
     // We could do something more efficient and more useful here.
@@ -71,10 +71,10 @@ class GraphFrame {
 
 
 // currently selected graph frame
-let selGraphFrame :GraphFrame|null = null
+let selGraphFrame: GraphFrame | null = null
 
 
-function setSelectedGraphFrame(gf :GraphFrame|null) {
+function setSelectedGraphFrame(gf: GraphFrame | null) {
   if (selGraphFrame !== gf) {
     // dlog(`set selGraphFrame ${selGraphFrame} -> ${gf}`)
     selGraphFrame = gf
@@ -106,7 +106,7 @@ function updateSelectedGraphFrame() {
 }
 
 
-function createNewGraph(msg :UpdateGraphMsg) {
+function createNewGraph(msg: UpdateGraphMsg) {
   let n = importGraphSvg(msg.svgCode)
   n.name = "Graph"
 
@@ -118,13 +118,13 @@ function createNewGraph(msg :UpdateGraphMsg) {
   n.setPluginData("viz.source", sourceCode)
 
   figma.currentPage.appendChild(n)
-  figma.currentPage.selection = [ n ]
+  figma.currentPage.selection = [n]
 
   setSelectedGraphFrame(new GraphFrame(n, sourceCode))
 }
 
 
-function onUpdateGraph(msg :UpdateGraphMsg) {
+function onUpdateGraph(msg: UpdateGraphMsg) {
   if (!msg.forceInsertNew && selGraphFrame) {
     selGraphFrame.update(msg)
   } else {
@@ -136,12 +136,12 @@ function onUpdateGraph(msg :UpdateGraphMsg) {
 }
 
 
-function onUIError(msg :ErrorMsg) {
+function onUIError(msg: ErrorMsg) {
   figma.notify(msg.error)
 }
 
 
-function sendmsg<T extends Msg>(msg :T) {
+function sendmsg<T extends Msg>(msg: T) {
   // send message to ui
   figma.ui.postMessage(msg)
 }
@@ -151,27 +151,26 @@ function main() {
   figma.showUI(__html__, {
     width: 440,
     height: 600,
-    position: "last",
   })
 
   figma.ui.onmessage = msg => {
     switch (msg.type) {
 
-    case "update-graph":
-      onUpdateGraph(msg as UpdateGraphMsg)
-      break
+      case "update-graph":
+        onUpdateGraph(msg as UpdateGraphMsg)
+        break
 
-    case "error":
-      onUIError(msg as ErrorMsg)
-      break
+      case "error":
+        onUIError(msg as ErrorMsg)
+        break
 
-    case "close-plugin":
-      figma.closePlugin()
-      break
+      case "close-plugin":
+        figma.closePlugin()
+        break
 
-    default:
-      console.warn(`plugin received unexpected message`, msg)
-      break
+      default:
+        console.warn(`plugin received unexpected message`, msg)
+        break
     }
   }
 
