@@ -1,5 +1,5 @@
 // URL to fetch
-let url = "https://scripter.rsms.me/icon.pngz"
+let url = "https://scripter.rsms.me/icon.png"
 
 // Run fetch in the UI process, sending the result to the plugin when done
 figma.showUI(`<script>
